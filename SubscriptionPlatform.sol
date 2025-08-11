@@ -110,6 +110,13 @@ contract SubscriptionPlatform is
         emit SubscribedWithToken(msg.sender, creator, creatorSubscriptions[creator][msg.sender]);
     }
 
+    function validateSubscriptionInputs(address creator, uint256 tierIndex) internal view {
+        require(creator != address(0), "SUBSCRIPTION_PLATFORM: Creator address cannot be zero");
+        require(creators[creator], "SUBSCRIPTION_PLATFORM: Creator not registered");
+        require(tierIndex < creatorTiers[creator].length, "SUBSCRIPTION_PLATFORM: Invalid tier index");
+        require(creatorTiers[creator][tierIndex].duration > 0, "SUBSCRIPTION_PLATFORM: Invalid plan duration");
+    }
+
     function enableAutoRenewal(address creator) external override {
         autoRenewal[creator][msg.sender] = true;
         emit AutoRenewalEnabled(creator, msg.sender);
