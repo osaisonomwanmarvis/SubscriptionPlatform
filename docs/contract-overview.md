@@ -1,4 +1,4 @@
-# 🏗️ Contract Architecture
+#  Contract Architecture
 
 ## Overview
 The SubscriptionPlatform contract enables decentralized subscription management with the following key components:
