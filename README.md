@@ -1,212 +1,281 @@
-# SubscriptionPlatform
-# 🔗 Web3 Subscription Platform Smart Contract
+#  Web3 Subscription Platform
 
+[![Build Status](https://github.com/username/web3-subscription-platform/workflows/Tests/badge.svg)](https://github.com/username/web3-subscription-platform/actions)
+[![Coverage](https://codecov.io/gh/username/web3-subscription-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/username/web3-subscription-platform)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/yourname/web3-subscription-platform/workflows/Tests/badge.svg)](https://github.com/yourname/web3-subscription-platform/actions)
-[![Coverage](https://codecov.io/gh/yourname/web3-subscription-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/yourname/web3-subscription-platform)
-[![Gas Report](https://img.shields.io/badge/Gas-Optimized-green.svg)](docs/gas-optimization.md)
+[![Solidity](https://img.shields.io/badge/Solidity-^0.8.20-blue)](https://soliditylang.org/)
 
-> A decentralized subscription platform enabling creators to monetize content through blockchain-based recurring payments with ETH and ERC20 tokens.
+##  Overview
 
-## ✨ Features
+A comprehensive decentralized subscription platform that enables content creators to monetize their work through crypto-based subscriptions. Built with advanced features like multi-tier subscriptions, auto-renewal, suspension/reactivation, and comprehensive analytics.
 
-- 🔄 **Flexible Subscriptions**: Support for multiple subscription tiers per creator
-- 💰 **Multi-Token Payments**: Accept ETH and whitelisted ERC20 tokens
-- 🔒 **Security First**: ReentrancyGuard protection and comprehensive access controls
-- 📊 **Creator Analytics**: Built-in earnings tracking and subscriber metrics
-- ⚡ **Auto-Renewal**: Optional automatic subscription renewals
-- 🎯 **Suspension System**: Temporary subscription suspension and reactivation
-- 📈 **Scalable Design**: Optimized for high-volume creator platforms
+###  Key Features
 
-## 🚀 Quick Start
+-  **Dual Payment System**: Accept both ETH and whitelisted ERC20 tokens
+-  **Multi-Tier Subscriptions**: Creators can offer multiple subscription tiers with custom pricing
+-  **Auto-Renewal**: Optional automatic subscription renewal for seamless user experience  
+-  **Suspension/Reactivation**: Users can temporarily suspend and reactivate subscriptions
+-  **Creator Analytics**: Comprehensive earnings and subscriber tracking
+-  **Grace Period**: 7-day grace period for expired subscriptions
+-  **Security First**: ReentrancyGuard protection and pausable contract
+-  **Subscription History**: Complete transaction history for all users
+
+##  Contract Architecture
+
+### Core Components
+
+| Component | Description | Gas Optimized |
+|-----------|-------------|---------------|
+| **Subscription Management** | Handle subscriptions, renewals, and expirations | ✅ |
+| **Multi-Tier System** | Support multiple subscription plans per creator | ✅ |
+| **Payment Processing** | ETH and ERC20 token payment handling | ✅ |
+| **Analytics Engine** | Real-time creator performance metrics | ✅ |
+| **Access Control** | Owner/Creator role-based permissions | ✅ |
+
+### Smart Contract State
+
+```solidity
+// Platform Configuration
+uint256 public platformFee = 0.01 ether;        // Default ETH fee
+uint256 public platformTokenFee = 10 * 10**18;  // Default token fee  
+uint256 public platformDuration = 30 days;      // Default duration
+uint256 public gracePeriod = 7 days;            // Grace period
+bool public paused = false;                     // Emergency pause
+
+// Core Mappings
+creatorSubscriptions[creator][user] => expiry   // Active subscriptions
+creatorTiers[creator] => SubscriptionPlan[]     // Creator's subscription tiers
+creatorAnalytics[creator] => CreatorAnalytics   // Creator performance data
+subscriptionHistory[user] => SubscriptionRecord[] // User's transaction history
+```
+
+##  Quick Start
 
 ### Installation
-\```bash
-git clone https://github.com/yourname/web3-subscription-platform.git
+
+```bash
+git clone https://github.com/username/web3-subscription-platform.git
 cd web3-subscription-platform
 npm install
-\```
+```
 
-### Deployment
-\```bash
-# Deploy to localhost
+### Local Development
+
+```bash
+# Start local blockchain
+npx hardhat node
+
+# Deploy with default token address
 npx hardhat run scripts/deploy.js --network localhost
 
-# Deploy to testnet
-npx hardhat run scripts/deploy.js --network sepolia
-
-# Verify contract
-npx hardhat verify --network sepolia <CONTRACT_ADDRESS> <TOKEN_ADDRESS>
-\```
+# Run comprehensive tests
+npm test
+```
 
 ### Basic Usage
-\```solidity
-// Subscribe to a creator
-subscriptionPlatform.subscribe(creatorAddress, tierIndex, {
-    value: ethers.utils.parseEther("0.1")
+
+```javascript
+// Subscribe to a creator's tier with ETH
+const tx = await subscriptionPlatform.subscribe(creatorAddress, tierIndex, {
+  value: ethers.utils.parseEther("0.1")
 });
 
+// Subscribe with ERC20 tokens
+await paymentToken.approve(subscriptionPlatform.address, tokenAmount);
+await subscriptionPlatform.subscribeWithToken(
+  creatorAddress, 
+  tierIndex, 
+  tokenAddress, 
+  tokenAmount
+);
+
 // Check subscription status
-bool isActive = subscriptionPlatform.creatorSubscriptions(creator, user) > block.timestamp;
-\```
+const expiry = await subscriptionPlatform.creatorSubscriptions(creatorAddress, userAddress);
+const isActive = expiry > Date.now() / 1000;
+```
 
-## 📋 Contract Overview
+##   Contract Functions
 
-| Contract | Address | Network |
-|----------|---------|---------|
-| SubscriptionPlatform | `0x123...` | Ethereum Mainnet |
-| SubscriptionPlatform | `0x456...` | Polygon |
-| SubscriptionPlatform | `0x789...` | Sepolia Testnet |
+###  Subscription Functions
 
-### Core Functions
+| Function | Description | Payment Method |
+|----------|-------------|----------------|
+| `subscribe(creator, tierIndex)` | Subscribe using ETH | ETH |
+| `subscribeWithToken(creator, tierIndex, token, amount)` | Subscribe using ERC20 tokens | ERC20 |
+| `enableAutoRenewal(creator)` | Enable automatic renewal | - |
+| `disableAutoRenewal(creator)` | Disable automatic renewal | - |
+| `suspendSubscription(creator)` | Temporarily suspend subscription | - |
+| `reactivateSubscription(creator)` | Reactivate suspended subscription | - |
 
-| Function | Purpose | Gas Estimate |
-|----------|---------|--------------|
-| `subscribe()` | Subscribe with ETH | ~85,000 |
-| `subscribeWithToken()` | Subscribe with ERC20 | ~120,000 |
-| `updateCreatorPlan()` | Update subscription tier | ~45,000 |
-| `suspendSubscription()` | Pause subscription | ~35,000 |
+###  Creator Functions
+
+| Function | Description | Access |
+|----------|-------------|---------|
+| `updateCreatorPlan(tierIndex, fee, tokenFee, duration, metadata, benefits)` | Create/update subscription tier | Creators only |
+
+###  Admin Functions
+
+| Function | Description | Access |
+|----------|-------------|---------|
+| `addCreator(address)` | Add new creator | Owner only |
+| `removeCreator(address)` | Remove creator and their data | Owner only |
+| `addWhitelistedToken(address)` | Add supported ERC20 token | Owner only |
+| `removeWhitelistedToken(address)` | Remove ERC20 token support | Owner only |
+| `pause()` / `unpause()` | Emergency contract controls | Owner only |
+
+##  Data Structures
+
+### SubscriptionPlan
+```solidity
+struct SubscriptionPlan {
+    uint256 fee;         // ETH price for this tier
+    uint256 tokenFee;    // ERC20 token price for this tier
+    uint256 duration;    // Subscription duration in seconds
+    string metadata;     // Detailed plan description
+    string benefits;     // Key benefits of the plan
+}
+```
+
+### CreatorAnalytics
+```solidity
+struct CreatorAnalytics {
+    uint256 totalEarningsETH;    // Total ETH earned
+    uint256 totalEarningsTokens; // Total tokens earned
+    uint256 activeSubscribers;   // Current active subscribers
+    uint256 totalSubscribers;    // All-time subscribers
+}
+```
+
+### SubscriptionRecord
+```solidity
+struct SubscriptionRecord {
+    address user;           // Subscriber address
+    uint256 startTime;      // Subscription start time
+    uint256 endTime;        // Subscription end time
+    uint256 amountPaid;     // Amount paid for subscription
+    string paymentMethod;   // "ETH" or "Token"
+}
+```
+
+##  Events
+
+### Subscription Events
+```solidity
+event Subscribed(address indexed user, address indexed creator, uint256 expiry);
+event SubscribedWithToken(address indexed user, address indexed creator, uint256 expiry);
+event AutoRenewalEnabled(address indexed creator, address indexed user);
+event AutoRenewalDisabled(address indexed creator, address indexed user);
+event SubscriptionSuspended(address indexed user, address indexed creator, uint256 suspensionTime);
+event SubscriptionReactivated(address indexed user, address indexed creator, uint256 expiry);
+```
+
+### Administrative Events
+```solidity
+event CreatorAdded(address indexed creator);
+event CreatorRemoved(address indexed creator);
+event PlanUpdated(address indexed creator, uint256 tierIndex, ...);
+event Paused();
+event Unpaused();
+```
+
+##  Gas Optimization Features
+
+- **Efficient Storage**: Packed structs and optimized mappings
+- **Batch Operations**: Multiple operations in single transaction
+- **Event-based Tracking**: Minimize storage reads/writes
+- **ReentrancyGuard**: Security without excessive gas overhead
+
+### Estimated Gas Usage
+| Function | Gas Estimate | Optimization Level |
+|----------|-------------|-------------------|
+| `subscribe()` | ~120,000 | High |
+| `subscribeWithToken()` | ~140,000 | High |
+| `updateCreatorPlan()` | ~80,000 | Medium |
+| `suspendSubscription()` | ~45,000 | High |
+
+##  Security Features
+
+### Built-in Protections
+- ✅ **ReentrancyGuard**: Prevents reentrancy attacks on all external calls
+- ✅ **Access Control**: Role-based permissions (Owner/Creator)
+- ✅ **Input Validation**: Comprehensive parameter validation
+- ✅ **Pausable Contract**: Emergency stop functionality
+- ✅ **Token Whitelisting**: Only approved ERC20 tokens accepted
+- ✅ **Overflow Protection**: Solidity 0.8.20+ built-in protection
+
+### Security Considerations
+- Contract owner has significant privileges (add/remove creators, pause)
+- Creators can modify their subscription plans at any time
+- Grace period allows access to expired subscriptions for 7 days
+- Suspended subscriptions preserve original expiry time
+
+##  Network Deployments
+
+| Network | Contract Address | Status | Verified |
+|---------|------------------|--------|----------|
+| Ethereum Mainnet | `0x...` | 🔴 Not Deployed | - |
+| Polygon Mainnet | `0x...` | 🔴 Not Deployed | - |
+| Goerli Testnet | `0x...` | 🔴 Not Deployed | - |
+| Localhost | `0x...` | ✅ Available | - |
 
 ## 📖 Documentation
 
-- 🏗️ [Contract Architecture](docs/contract-overview.md)
-- 📚 [Function Reference](docs/functions.md) 
-- 📡 [Events & Logs](docs/events.md)
-- 🔧 [Integration Guide](docs/integration.md)
-- 🛡️ [Security Considerations](docs/security.md)
-- ⛽ [Gas Optimization](docs/gas-optimization.md)
+- [ Function Reference](./docs/functions.md) - Complete function documentation
+- [ Contract Architecture](./docs/contract-overview.md) - Technical architecture details
+- [ Integration Guide](./docs/integration.md) - Frontend integration examples
+- [ Deployment Guide](./docs/deployment.md) - Deployment instructions
+- [ Security Analysis](./docs/security.md) - Security considerations
+- [ Gas Optimization](./docs/gas-optimization.md) - Gas usage analysis
 
-## 🧪 Testing
+##  Testing
 
-\```bash
+```bash
 # Run all tests
 npm test
 
 # Run with coverage
 npm run test:coverage
 
-# Run gas report
-npm run test:gas
+# Run specific test suite
+npx hardhat test test/SubscriptionPlatform.test.js
+```
 
-# Run integration tests
-npm run test:integration
-\```
+### Test Coverage
+- ✅ Subscription lifecycle (create, renew, expire)
+- ✅ Multi-tier subscription management
+- ✅ Payment processing (ETH and ERC20)
+- ✅ Auto-renewal functionality
+- ✅ Suspension and reactivation
+- ✅ Creator analytics tracking
+- ✅ Access control and security
+- ✅ Edge cases and error conditions
 
-**Test Coverage**: 95%+ across all critical functions
+##  Contributing
 
-## 🛡️ Security
-
-- ✅ **Audited**: Preliminary security audit completed
-- 🔒 **ReentrancyGuard**: Protection against reentrancy attacks
-- 🎯 **Access Controls**: Role-based permissions (owner, creator)
-- ⏸️ **Emergency Pause**: Contract can be paused for maintenance
-- 💰 **Fund Safety**: No funds locked, transparent withdrawal mechanisms
-
-[View Security Report](audits/preliminary-audit-report.pdf)
-
-## 🌐 Deployments
-
-### Mainnet
-- **Ethereum**: [`0x1234...abcd`](https://etherscan.io/address/0x1234)
-- **Polygon**: [`0x5678...efgh`](https://polygonscan.com/address/0x5678)
-
-### Testnet
-- **Sepolia**: [`0x9abc...def0`](https://sepolia.etherscan.io/address/0x9abc)
-- **Mumbai**: [`0x1def...2345`](https://mumbai.polygonscan.com/address/0x1def)
-
-## 💻 Frontend Integration
-
-### React Example
-\```typescript
-import { ethers } from 'ethers';
-import SubscriptionPlatformABI from './abis/SubscriptionPlatform.json';
-
-const contract = new ethers.Contract(
-  CONTRACT_ADDRESS,
-  SubscriptionPlatformABI,
-  signer
-);
-
-// Subscribe to creator
-const subscribe = async (creator: string, tierIndex: number, ethAmount: string) => {
-  const tx = await contract.subscribe(creator, tierIndex, {
-    value: ethers.utils.parseEther(ethAmount)
-  });
-  return await tx.wait();
-};
-\```
-
-[View Complete Integration Examples](frontend-integration/examples/)
-
-## 📊 Analytics & Monitoring
-
-### Creator Analytics Structure
-\```solidity
-struct CreatorAnalytics {
-    uint256 totalEarningsETH;      // Total ETH earned
-    uint256 totalEarningsTokens;   // Total tokens earned
-    uint256 activeSubscribers;     // Current active subscribers
-    uint256 totalSubscribers;      // All-time subscribers
-}
-\```
-
-### Events for Monitoring
-- `Subscribed(user, creator, expiry)` - New subscription
-- `SubscribedWithToken(user, creator, expiry)` - Token subscription
-- `AutoRenewalEnabled(creator, user)` - Auto-renewal activated
-- `SubscriptionSuspended(user, creator, time)` - Suspension event
-
-## ⛽ Gas Optimization
-
-| Operation | Gas Cost | Optimization |
-|-----------|----------|-------------|
-| First subscription | ~85K | Struct packing |
-| Renewal subscription | ~45K | Storage reuse |
-| Token subscription | ~120K | Batch operations |
-| Plan updates | ~35K | Minimal storage |
-
-[Detailed Gas Analysis](docs/gas-optimization.md)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Run tests (`npm test`)
-4. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-5. Push to the branch (`git push origin feature/AmazingFeature`)
-6. Open a Pull Request
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ### Development Setup
-\```bash
-# Install dependencies
-npm install
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Write tests for your changes
+4. Ensure all tests pass: `npm test`
+5. Submit pull request
 
-# Start local blockchain
-npx hardhat node
+##  License
 
-# Deploy contracts
-npx hardhat run scripts/deploy.js --network localhost
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-# Run tests
-npm test
-\```
+##  Disclaimer
 
-## 📄 License
+This smart contract is provided "as is" without warranty of any kind. Use at your own risk. Always conduct thorough testing before deploying to mainnet.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+##  Links
 
-## 🔗 Links
-
-- 📖 [Documentation](docs/)
-- 🐛 [Report Bug](https://github.com/yourname/web3-subscription-platform/issues)
-- 💡 [Request Feature](https://github.com/yourname/web3-subscription-platform/issues)
-- 💬 [Discord Community](https://discord.gg/yourserver)
-- 🐦 [Twitter](https://twitter.com/yourproject)
-
-## ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=yourname/web3-subscription-platform&type=Date)](https://star-history.com/#yourname/web3-subscription-platform&Date)
+- [Documentation](./docs/)
+- [Examples](./frontend-integration/examples/)
+- [Test Suite](./test/)
+- [Deployment Scripts](./scripts/)
 
 ---
 
-**Built with ❤️ for the decentralized creator economy**
+**Built by Osaisonomwan Marvis**
