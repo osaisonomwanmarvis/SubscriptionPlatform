@@ -4,32 +4,41 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract SubscriptionPlatform is ReentrancyGuard {
+// Interfaces
+import "./interfaces/ISubscriptionPlatform.sol";
+import "./interfaces/ICreatorTiers.sol";
+
+// Libraries
+import "./libraries/SubscriptionLib.sol";
+import "./libraries/PlatformMath.sol";
+
+contract SubscriptionPlatform is 
+    ReentrancyGuard, 
+    ISubscriptionPlatform, 
+    ICreatorTiers 
+{
+    using SubscriptionLib for uint256;
+    using PlatformMath for uint256;
+
     address public owner;
-    uint256 public platformFee = 0.01 ether; // Default ETH fee
-    uint256 public platformTokenFee = 10 * 10**18; // Default token fee
-    uint256 public platformDuration = 30 days; // Default subscription duration
+    uint256 public platformFee = 0.01 ether; // Fixed ETH fee
+    uint256 public platformTokenFee = 10 * 10**18; // Fixed token fee
+    uint256 public platformDuration = 30 days;
     uint256 public totalSubscribers;
-    uint256 public gracePeriod = 7 days; // Grace period for expired subscriptions
+    uint256 public gracePeriod = 7 days;
     bool public paused = false;
 
     IERC20 public defaultPaymentToken;
 
-    struct SubscriptionPlan {
-        uint256 fee;
-        uint256 tokenFee;
-        uint256 duration;
-        string metadata; // Detailed plan description
-        string benefits; // Key benefits of the plan
-    }
-
-    struct SubscriptionRecord {
-        address user;
-        uint256 startTime;
-        uint256 endTime;
-        uint256 amountPaid;
-        string paymentMethod; // e.g., "ETH" or "Token"
-    }
+    // Mappings
+    mapping(address => mapping(address => uint256)) public creatorSubscriptions; // creator -> user -> expiry
+    mapping(address => bool) public creators;
+    mapping(address => SubscriptionPlan[]) public creatorTiers;
+    mapping(address => CreatorAnalytics) public creatorAnalytics;
+    mapping(address => SubscriptionRecord[]) public subscriptionHistory;
+    mapping(address => mapping(address => bool)) public autoRenewal; 
+    mapping(address => bool) public whitelistedTokens;
+    mapping(address => mapping(address => uint256)) public suspendedSubscriptions; 
 
     struct CreatorAnalytics {
         uint256 totalEarningsETH;
@@ -38,37 +47,7 @@ contract SubscriptionPlatform is ReentrancyGuard {
         uint256 totalSubscribers;
     }
 
-    mapping(address => mapping(address => uint256)) public creatorSubscriptions; // creator -> user -> expiry
-    mapping(address => bool) public creators;
-    mapping(address => SubscriptionPlan[]) public creatorTiers; // creator -> subscription tiers
-    mapping(address => CreatorAnalytics) public creatorAnalytics;
-    mapping(address => SubscriptionRecord[]) public subscriptionHistory; // user -> history
-
-    mapping(address => mapping(address => bool)) public autoRenewal; // creator -> user -> autoRenewal status
-    mapping(address => bool) public whitelistedTokens; // Supported ERC20 tokens for payment
-    mapping(address => mapping(address => uint256)) public suspendedSubscriptions; // creator -> user -> suspension end time
-
-    event Subscribed(address indexed user, address indexed creator, uint256 expiry);
-    event SubscribedWithToken(address indexed user, address indexed creator, uint256 expiry);
-    event Withdrawn(address indexed owner, uint256 amount);
-    event CreatorAdded(address indexed creator);
-    event CreatorRemoved(address indexed creator);
-    event PlanUpdated(
-        address indexed creator,
-        uint256 tierIndex,
-        uint256 fee,
-        uint256 tokenFee,
-        uint256 duration,
-        string metadata,
-        string benefits
-    );
-    event AutoRenewalEnabled(address indexed creator, address indexed user);
-    event AutoRenewalDisabled(address indexed creator, address indexed user);
-    event SubscriptionSuspended(address indexed user, address indexed creator, uint256 suspensionTime);
-    event SubscriptionReactivated(address indexed user, address indexed creator, uint256 expiry);
-    event Paused();
-    event Unpaused();
-
+    // Modifiers
     modifier onlyOwner() {
         require(msg.sender == owner, "Not the owner");
         _;
@@ -90,8 +69,15 @@ contract SubscriptionPlatform is ReentrancyGuard {
         creators[msg.sender] = true;
     }
 
+    // -------------------------
     // Subscription Functions
-    function subscribe(address creator, uint256 tierIndex) external payable notPaused {
+    // -------------------------
+    function subscribe(address creator, uint256 tierIndex) 
+        external 
+        payable 
+        override 
+        notPaused 
+    {
         require(creators[creator], "Invalid creator");
         require(tierIndex < creatorTiers[creator].length, "Invalid tier index");
 
@@ -108,7 +94,7 @@ contract SubscriptionPlatform is ReentrancyGuard {
         uint256 tierIndex,
         address token,
         uint256 amount
-    ) external notPaused {
+    ) external override notPaused {
         require(creators[creator], "Invalid creator");
         require(tierIndex < creatorTiers[creator].length, "Invalid tier index");
         require(whitelistedTokens[token], "Token not supported");
@@ -124,27 +110,27 @@ contract SubscriptionPlatform is ReentrancyGuard {
         emit SubscribedWithToken(msg.sender, creator, creatorSubscriptions[creator][msg.sender]);
     }
 
-    function enableAutoRenewal(address creator) external {
+    function enableAutoRenewal(address creator) external override {
         autoRenewal[creator][msg.sender] = true;
         emit AutoRenewalEnabled(creator, msg.sender);
     }
 
-    function disableAutoRenewal(address creator) external {
+    function disableAutoRenewal(address creator) external override {
         autoRenewal[creator][msg.sender] = false;
         emit AutoRenewalDisabled(creator, msg.sender);
     }
 
-    function suspendSubscription(address creator) external {
+    function suspendSubscription(address creator) external override {
         require(creatorSubscriptions[creator][msg.sender] > block.timestamp, "No active subscription");
         suspendedSubscriptions[creator][msg.sender] = creatorSubscriptions[creator][msg.sender];
-        creatorSubscriptions[creator][msg.sender] = 0; // Clear active subscription
+        creatorSubscriptions[creator][msg.sender] = 0;
         emit SubscriptionSuspended(msg.sender, creator, suspendedSubscriptions[creator][msg.sender]);
     }
 
-    function reactivateSubscription(address creator) external {
+    function reactivateSubscription(address creator) external override {
         require(suspendedSubscriptions[creator][msg.sender] > 0, "No suspended subscription");
         creatorSubscriptions[creator][msg.sender] = suspendedSubscriptions[creator][msg.sender];
-        suspendedSubscriptions[creator][msg.sender] = 0; // Clear suspension
+        suspendedSubscriptions[creator][msg.sender] = 0;
         emit SubscriptionReactivated(msg.sender, creator, creatorSubscriptions[creator][msg.sender]);
     }
 
@@ -160,9 +146,10 @@ contract SubscriptionPlatform is ReentrancyGuard {
             creatorAnalytics[creator].totalSubscribers += 1;
         }
 
-        uint256 newExpiry = block.timestamp > creatorSubscriptions[creator][msg.sender]
-            ? block.timestamp + duration
-            : creatorSubscriptions[creator][msg.sender] + duration;
+        uint256 newExpiry = SubscriptionLib.calculateNewExpiry(
+            creatorSubscriptions[creator][msg.sender],
+            duration
+        );
 
         creatorSubscriptions[creator][msg.sender] = newExpiry;
 
@@ -173,7 +160,6 @@ contract SubscriptionPlatform is ReentrancyGuard {
             creatorAnalytics[creator].totalEarningsTokens += tokensPaid;
         }
 
-        // Record subscription history
         subscriptionHistory[msg.sender].push(
             SubscriptionRecord({
                 user: msg.sender,
@@ -185,13 +171,15 @@ contract SubscriptionPlatform is ReentrancyGuard {
         );
     }
 
-    // Owner Functions
-    function addCreator(address creator) external onlyOwner {
+    // -------------------------
+    // Creator Management
+    // -------------------------
+    function addCreator(address creator) external override onlyOwner {
         creators[creator] = true;
         emit CreatorAdded(creator);
     }
 
-    function removeCreator(address creator) external onlyOwner {
+    function removeCreator(address creator) external override onlyOwner {
         creators[creator] = false;
         delete creatorSubscriptions[creator];
         delete creatorTiers[creator];
@@ -203,9 +191,9 @@ contract SubscriptionPlatform is ReentrancyGuard {
         uint256 fee,
         uint256 tokenFee,
         uint256 duration,
-        string memory metadata,
-        string memory benefits
-    ) external onlyCreator {
+        string calldata metadata,
+        string calldata benefits
+    ) external override onlyCreator {
         if (tierIndex < creatorTiers[msg.sender].length) {
             creatorTiers[msg.sender][tierIndex] = SubscriptionPlan(fee, tokenFee, duration, metadata, benefits);
         } else {
@@ -214,6 +202,9 @@ contract SubscriptionPlatform is ReentrancyGuard {
         emit PlanUpdated(msg.sender, tierIndex, fee, tokenFee, duration, metadata, benefits);
     }
 
+    // -------------------------
+    // Platform Controls
+    // -------------------------
     function addWhitelistedToken(address token) external onlyOwner {
         whitelistedTokens[token] = true;
     }
